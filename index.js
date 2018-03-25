@@ -173,6 +173,10 @@ function readStream (stream, encoding, length, limit, callback) {
     }))
   }
 
+  if (stream.hasOwnProperty('readable') && !stream.readable) {
+    return done(createError(500, 'stream should be readable'))
+  }
+
   var received = 0
   var decoder
 
