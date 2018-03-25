@@ -113,15 +113,15 @@ describe('Raw Body', function () {
   })
 
   it('should throw if stream is not readable', function (done) {
-    var stream = new Readable();
-    stream.readable = false;
+    var stream = new Readable()
+    stream.readable = false
 
-    getRawBody(stream, function(err, buf) {
-      assert.equal(err.status, 500);
-      assert.equal(err.message, 'stream should be readable');
-      done();
-    });
-  });
+    getRawBody(stream, function (err, buf) {
+      assert.equal(err.status, 500)
+      assert.equal(err.message, 'stream should be readable')
+      done()
+    })
+  })
 
   it('should work with an empty stream', function (done) {
     var stream = new Readable()
