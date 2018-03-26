@@ -111,6 +111,10 @@ This error will occur when the given stream has an encoding set on it, making it
 a decoded stream. The stream should not have an encoding set and is expected to
 emit `Buffer` objects.
 
+#### stream.not.readable
+
+This error will occur when the given stream not readable, it may be a request parsed by other middleware before.
+
 ## Examples
 
 ### Simple Express example
