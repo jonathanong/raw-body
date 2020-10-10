@@ -8,6 +8,13 @@ var EventEmitter = require('events').EventEmitter
 var Promise = global.Promise || require('bluebird')
 var Readable = require('readable-stream').Readable
 
+var describeWhenAsyncHooksAreSupported = describe.skip
+try {
+  var asyncHooks = require('async_hooks')
+  describeWhenAsyncHooksAreSupported = typeof asyncHooks.AsyncLocalStorage === 'function' ? describe : describe.skip
+} catch (ignored) {
+}
+
 var file = path.join(__dirname, 'index.js')
 var length = fs.statSync(file).size
 var string = fs.readFileSync(file, 'utf8')
@@ -268,6 +275,23 @@ describe('Raw Body', function () {
         assert.ifError(err)
         checkString(str)
         done()
+      })
+    })
+  })
+
+  describeWhenAsyncHooksAreSupported('when used with async hooks', function () {
+    it('should maintain async context', function (done) {
+      var asyncLocalStorage = new asyncHooks.AsyncLocalStorage()
+      var store = {
+        contextMaintained: true
+      }
+      var stream = createStream()
+
+      asyncLocalStorage.run(store, function () {
+        getRawBody(stream, function () {
+          assert.strictEqual(asyncLocalStorage.getStore(), store)
+          done()
+        })
       })
     })
   })

@@ -17,6 +17,12 @@ var createError = require('http-errors')
 var iconv = require('iconv-lite')
 var unpipe = require('unpipe')
 
+var asyncHooks
+try {
+  asyncHooks = require('async_hooks')
+} catch (ignored) {
+}
+
 /**
  * Module exports.
  * @public
@@ -148,6 +154,35 @@ function readStream (stream, encoding, length, limit, callback) {
   var complete = false
   var sync = true
 
+  var done = preserveAsyncContext('RawBodyDone', function () {
+    var args = new Array(arguments.length)
+
+    // copy arguments
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i]
+    }
+
+    // mark complete
+    complete = true
+
+    if (sync) {
+      process.nextTick(invokeCallback)
+    } else {
+      invokeCallback()
+    }
+
+    function invokeCallback () {
+      cleanup()
+
+      if (args[0]) {
+        // halt the stream on error
+        halt(stream)
+      }
+
+      callback.apply(null, args)
+    }
+  })
+
   // check the length and limit options.
   // note: we intentionally leave the stream paused,
   // so users should handle the stream themselves.
@@ -195,35 +230,6 @@ function readStream (stream, encoding, length, limit, callback) {
 
   // mark sync section complete
   sync = false
-
-  function done () {
-    var args = new Array(arguments.length)
-
-    // copy arguments
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i]
-    }
-
-    // mark complete
-    complete = true
-
-    if (sync) {
-      process.nextTick(invokeCallback)
-    } else {
-      invokeCallback()
-    }
-
-    function invokeCallback () {
-      cleanup()
-
-      if (args[0]) {
-        // halt the stream on error
-        halt(stream)
-      }
-
-      callback.apply(null, args)
-    }
-  }
 
   function onAborted () {
     if (complete) return
@@ -283,4 +289,12 @@ function readStream (stream, encoding, length, limit, callback) {
     stream.removeListener('error', onEnd)
     stream.removeListener('close', cleanup)
   }
+}
+
+function preserveAsyncContext (asyncResourceType, fn) {
+  if (!asyncHooks) {
+    return fn
+  }
+  var asyncResource = new asyncHooks.AsyncResource(asyncResourceType)
+  return asyncResource.runInAsyncScope.bind(asyncResource, fn, null)
 }
