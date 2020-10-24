@@ -111,6 +111,7 @@ function getRawBody (stream, options, callback) {
 
   if (done) {
     // classic callback style
+    done = preserveAsyncContext('RawBodyDone', done)
     return readStream(stream, encoding, length, limit, done)
   }
 
@@ -153,35 +154,6 @@ function halt (stream) {
 function readStream (stream, encoding, length, limit, callback) {
   var complete = false
   var sync = true
-
-  var done = preserveAsyncContext('RawBodyDone', function () {
-    var args = new Array(arguments.length)
-
-    // copy arguments
-    for (var i = 0; i < args.length; i++) {
-      args[i] = arguments[i]
-    }
-
-    // mark complete
-    complete = true
-
-    if (sync) {
-      process.nextTick(invokeCallback)
-    } else {
-      invokeCallback()
-    }
-
-    function invokeCallback () {
-      cleanup()
-
-      if (args[0]) {
-        // halt the stream on error
-        halt(stream)
-      }
-
-      callback.apply(null, args)
-    }
-  })
 
   // check the length and limit options.
   // note: we intentionally leave the stream paused,
@@ -230,6 +202,35 @@ function readStream (stream, encoding, length, limit, callback) {
 
   // mark sync section complete
   sync = false
+
+  function done () {
+    var args = new Array(arguments.length)
+
+    // copy arguments
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i]
+    }
+
+    // mark complete
+    complete = true
+
+    if (sync) {
+      process.nextTick(invokeCallback)
+    } else {
+      invokeCallback()
+    }
+
+    function invokeCallback () {
+      cleanup()
+
+      if (args[0]) {
+        // halt the stream on error
+        halt(stream)
+      }
+
+      callback.apply(null, args)
+    }
+  }
 
   function onAborted () {
     if (complete) return
