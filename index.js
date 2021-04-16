@@ -17,6 +17,12 @@ var createError = require('http-errors')
 var iconv = require('iconv-lite')
 var unpipe = require('unpipe')
 
+var asyncHooks
+try {
+  asyncHooks = require('async_hooks')
+} catch (ignored) {
+}
+
 /**
  * Module exports.
  * @public
@@ -105,6 +111,7 @@ function getRawBody (stream, options, callback) {
 
   if (done) {
     // classic callback style
+    done = preserveAsyncContext('RawBodyDone', done)
     return readStream(stream, encoding, length, limit, done)
   }
 
@@ -283,4 +290,12 @@ function readStream (stream, encoding, length, limit, callback) {
     stream.removeListener('error', onEnd)
     stream.removeListener('close', cleanup)
   }
+}
+
+function preserveAsyncContext (asyncResourceType, fn) {
+  if (!asyncHooks) {
+    return fn
+  }
+  var asyncResource = new asyncHooks.AsyncResource(asyncResourceType)
+  return asyncResource.runInAsyncScope.bind(asyncResource, fn, null)
 }
