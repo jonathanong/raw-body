@@ -67,6 +67,28 @@ describe('using http streams', function () {
     })
   })
 
+  it('should throw if stream is not readable', function (done) {
+    var server = http.createServer(function onRequest (req, res) {
+      getRawBody(req, { length: req.headers['content-length'] }, function (err) {
+        assert.ifError(err)
+
+        getRawBody(req, { length: req.headers['content-length'] }, function (err) {
+          assert.ok(err)
+          assert.equal(err.status, 500)
+          assert.equal(err.type, 'stream.not.readable')
+          assert.equal(err.message, 'stream should be readable')
+          done()
+        })
+      })
+    })
+
+    server.listen(function onListen () {
+      var addr = server.address()
+      var client = http.request({method: 'POST', port: addr.port})
+      client.end('hello, world!')
+    })
+  })
+
   it('should throw if connection ends', function (done) {
     var socket
     var server = http.createServer(function onRequest (req, res) {
